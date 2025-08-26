@@ -1,0 +1,25 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ReviewStatus {
+  REVIEWED
+  REVIEWING
+  NOT_REVIEWED
+}
+
+model Dictionary {
+  id        Int           @id @default(autoincrement())
+  chinese   String
+  english   String
+  pinyin    String
+  phonetic  String
+  status    ReviewStatus  @default(NOT_REVIEWED)
+}
+
