@@ -14,6 +14,7 @@ interface DictionaryEntry {
   chinese: string
   english: string
   pinyin: string
+  phonetic: string
   examples?: Example[]
 }
 
@@ -105,10 +106,7 @@ export default function Home() {
           <div className="flex items-center justify-center gap-2 mb-4">
             <h2 className="text-4xl font-bold"> Pinyin Dictionary</h2>
           </div>
-          <p className="text-muted-foreground text-lg max-w-2xl mx-auto mb-6">
-            Get instant, accurate pinyin pronunciations using advanced AI technology. Perfect for language learners,
-            students, and educators.
-          </p>
+
           <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-muted-foreground">
             <div className="flex items-center gap-2">
               <Brain className="h-4 w-4 text-primary" />
@@ -140,10 +138,7 @@ export default function Home() {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="flex w-full rounded-md border-2 border-input bg-transparent px-3 py-2 text-lg shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 pl-10 h-14 focus:border-primary"
             />
-            <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-1 text-xs text-muted-foreground">
-              <Sparkles className="h-3 w-3" />
-              <span>AI</span>
-            </div>
+            
           </div>
         </div>
 
@@ -182,7 +177,7 @@ export default function Home() {
                   style={{ animationDelay: `${index * 100}ms` }}
                 >
                   <div className="flex flex-col sm:flex-row items-start justify-between p-4 gap-4">
-                    <div className="flex-1 grid grid-cols-1 xs:grid-cols-3 gap-4 w-full">
+                    <div className="flex-1 grid grid-cols-2 xs:grid-cols-3 gap-4 w-full">
                       <div className="flex flex-col">
                         <div className="text-xs text-muted-foreground mb-1">Chinese</div>
                         <div className="text-2xl font-bold break-all">{item.chinese}</div>
@@ -194,6 +189,10 @@ export default function Home() {
                       <div className="flex flex-col">
                         <div className="text-xs text-muted-foreground mb-1">English</div>
                         <div className="text-lg text-muted-foreground break-words">{item.english}</div>
+                      </div>
+                      <div className="flex flex-col">
+                        <div className="text-xs text-muted-foreground mb-1">Phonetic</div>
+                        <div className="text-lg text-muted-foreground break-words">{item.phonetic}</div>
                       </div>
                     </div>
                     {item.examples && item.examples.length > 0 && (

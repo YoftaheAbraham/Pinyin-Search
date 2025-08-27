@@ -14,6 +14,17 @@ enum ReviewStatus {
   NOT_REVIEWED
 }
 
+model Admin {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  email     String   @unique
+  password  String
+  role      String   @default("admin")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  isActive  Boolean  @default(true)
+}
+
 model Dictionary {
   id        Int           @id @default(autoincrement())
   chinese   String
@@ -22,4 +33,3 @@ model Dictionary {
   phonetic  String
   status    ReviewStatus  @default(NOT_REVIEWED)
 }
-

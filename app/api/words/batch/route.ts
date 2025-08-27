@@ -1,18 +1,19 @@
 import { type NextRequest, NextResponse } from "next/server"
-
-const mockDictionary = [
-  { id: 1, chinese: "你好", english: "hello", pinyin: "nǐ hǎo" },
-  { id: 2, chinese: "谢谢", english: "thank you", pinyin: "xiè xiè" },
-  { id: 3, chinese: "再见", english: "goodbye", pinyin: "zài jiàn" },
-  { id: 4, chinese: "朋友", english: "friend", pinyin: "péng yǒu" },
-  { id: 5, chinese: "学习", english: "study", pinyin: "xué xí" },
-  { id: 6, chinese: "工作", english: "work", pinyin: "gōng zuò" },
-  { id: 7, chinese: "家庭", english: "family", pinyin: "jiā tíng" },
-  { id: 8, chinese: "时间", english: "time", pinyin: "shí jiān" },
-]
+import { verifyToken } from "@/lib/auth"
+import { Prisma } from "@/lib/prisma.client"
 
 export async function POST(request: NextRequest) {
   try {
+    const token = request.cookies.get("auth-token")?.value
+    if (!token) {
+      return NextResponse.json({ success: false, error: "Authentication required" }, { status: 401 })
+    }
+
+    const payload = verifyToken(token)
+    if (!payload) {
+      return NextResponse.json({ success: false, error: "Invalid authentication" }, { status: 401 })
+    }
+
     const body = await request.json()
     const { entries } = body
 
@@ -30,21 +31,23 @@ export async function POST(request: NextRequest) {
 
     for (let i = 0; i < entries.length; i++) {
       const entry = entries[i]
-      const { chinese, english, pinyin } = entry
+      const { chinese, english, pinyin, phonetic, status } = entry
 
       try {
-        if (!chinese || !english || !pinyin) {
+        if (!chinese || !english || !pinyin || !phonetic) {
           errors.push({
             index: i,
             entry,
-            error: "Chinese, English, and Pinyin are required",
+            error: "Chinese, English, Pinyin, and Phonetic are required",
           })
           continue
         }
 
-        const existingEntry = mockDictionary.find(
-          (existing) => existing.chinese === chinese || existing.english === english,
-        )
+        const existingEntry = await Prisma.dictionary.findFirst({
+          where: {
+            OR: [{ chinese: { equals: chinese } }, { english: { equals: english } }],
+          },
+        })
 
         if (existingEntry) {
           errors.push({
@@ -55,14 +58,16 @@ export async function POST(request: NextRequest) {
           continue
         }
 
-        const newEntry: any = {
-          id: Math.max(...mockDictionary.map((d) => d.id)) + results.length + 1,
-          chinese: chinese.trim(),
-          english: english.trim(),
-          pinyin: pinyin.trim(),
-        }
+        const newEntry = await Prisma.dictionary.create({
+          data: {
+            chinese: chinese.trim(),
+            english: english.trim(),
+            pinyin: pinyin.trim(),
+            phonetic: phonetic.trim(),
+            status: status || "NOT_REVIEWED",
+          },
+        })
 
-        mockDictionary.push(newEntry)
         results.push(newEntry)
       } catch (error) {
         errors.push({

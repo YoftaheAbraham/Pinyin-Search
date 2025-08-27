@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { authenticateAdmin } from "@/lib/auth"
 
 export async function POST(request: NextRequest) {
   try {
@@ -8,7 +9,7 @@ export async function POST(request: NextRequest) {
     console.log("[v0] Login attempt:", {
       username,
       timestamp: new Date().toISOString(),
-      ip: request.ip || "unknown",
+      ip: (request as any).ip || "unknown",
     })
 
     if (!username || !password) {
@@ -16,23 +17,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Username and password are required" }, { status: 400 })
     }
 
-    const mockUsers = [
-      { username: "admin", password: "admin123" },
-      { username: "user", password: "user123" },
-    ]
+    const result = await authenticateAdmin(username, password)
 
-    const user = mockUsers.find((u) => u.username === username && u.password === password)
+    if (result) {
+      const { admin, token } = result
+      console.log("[v0] Login successful for admin:", username)
 
-    if (user) {
-      console.log("[v0] Login successful for user:", username)
-      return NextResponse.json({
+      const response = NextResponse.json({
         success: true,
         message: "Login successful",
         user: {
-          username: user.username,
+          id: admin.id,
+          username: admin.username,
+          email: admin.email,
+          role: admin.role,
           loginTime: new Date().toISOString(),
         },
       })
+
+      // Set HTTP-only cookie for session management
+      response.cookies.set("auth-token", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      })
+
+      return response
     } else {
       console.log("[v0] Login failed: Invalid credentials for user:", username)
       return NextResponse.json({ success: false, error: "Invalid username or password" }, { status: 401 })

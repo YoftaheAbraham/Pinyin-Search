@@ -1,13 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { Prisma } from "@/lib/prisma.client"
+import { hashPassword } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    
     const query = searchParams.get("q")?.trim().toLowerCase() || "";
-    console.log("search param:", query);
-
     if (!query) {
       const allEntries = await Prisma.dictionary.findMany();
       return NextResponse.json({ success: true, count: allEntries.length, data: allEntries });
@@ -22,8 +20,6 @@ export async function GET(request: NextRequest) {
         ],
       },
     });
-    console.log("entries:", entries);
-    
     return NextResponse.json({ success: true, count: entries.length, data: entries });
   } catch (error) {
     console.error("[API] Error searching dictionary:", error);
