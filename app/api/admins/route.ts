@@ -9,7 +9,9 @@ export async function GET(request: NextRequest) {
     }
 
     const payload = verifyToken(token)
-    if (!payload || payload.role !== "SUPER_ADMIN") {
+    console.log(payload);
+    
+    if (!payload || payload.role !== "super_admin") {
       return NextResponse.json({ success: false, error: "Super admin access required" }, { status: 403 })
     }
 
@@ -33,7 +35,8 @@ export async function POST(request: NextRequest) {
     }
 
     const payload = verifyToken(token)
-    if (!payload || payload.role !== "SUPER_ADMIN") {
+    
+    if (!payload || payload.role !== "super_admin") {
       return NextResponse.json({ success: false, error: "Super admin access required" }, { status: 403 })
     }
 
