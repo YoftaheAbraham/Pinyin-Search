@@ -2,6 +2,8 @@ import { type NextRequest, NextResponse } from "next/server"
 import { verifyToken } from "@/lib/auth"
 import { Prisma } from "@/lib/prisma.client"
 
+const ALLOWED_ROLES = ["ADMIN", "MODERATOR", "SUPER_ADMIN"]
+
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const token = request.cookies.get("auth-token")?.value
@@ -10,30 +12,32 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     }
 
     const payload = verifyToken(token)
-    if (!payload || payload.role !== "SUPER_ADMIN") {
+    if (!payload || payload.role !== "super_admin") {
       return NextResponse.json({ success: false, error: "Super admin access required" }, { status: 403 })
     }
 
     const adminId = Number.parseInt(params.id)
+    if (isNaN(adminId)) {
+      return NextResponse.json({ success: false, error: "Invalid admin ID" }, { status: 400 })
+    }
+
     const body = await request.json()
     const { isActive, role } = body
-
-    // Prevent deactivating self
     if (payload.adminId === adminId && isActive === false) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "Cannot deactivate your own account",
-        },
-        { status: 400 },
+        { success: false, error: "You cannot deactivate your own account" },
+        { status: 400 }
       )
+    }
+    if (role && !ALLOWED_ROLES.includes(role.toUpperCase())) {
+      return NextResponse.json({ success: false, error: "Invalid role" }, { status: 400 })
     }
 
     const updatedAdmin = await Prisma.admin.update({
       where: { id: adminId },
       data: {
         ...(typeof isActive === "boolean" && { isActive }),
-        ...(role && { role }),
+        ...(role && { role: role.toUpperCase() }),
         updatedAt: new Date(),
       },
       select: {
@@ -69,26 +73,22 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     }
 
     const payload = verifyToken(token)
-    if (!payload || payload.role !== "SUPER_ADMIN") {
+    if (!payload || payload.role !== "super_admin") {
       return NextResponse.json({ success: false, error: "Super admin access required" }, { status: 403 })
     }
 
     const adminId = Number.parseInt(params.id)
-
-    // Prevent deleting self
+    if (isNaN(adminId)) {
+      return NextResponse.json({ success: false, error: "Invalid admin ID" }, { status: 400 })
+    }
     if (payload.adminId === adminId) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "Cannot delete your own account",
-        },
-        { status: 400 },
+        { success: false, error: "You cannot delete your own account" },
+        { status: 400 }
       )
     }
 
-    await Prisma.admin.delete({
-      where: { id: adminId },
-    })
+    await Prisma.admin.delete({ where: { id: adminId } })
 
     return NextResponse.json({
       success: true,

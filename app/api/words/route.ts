@@ -1,6 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { Prisma } from "@/lib/prisma.client"
-import { hashPassword } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   try {

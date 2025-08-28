@@ -25,6 +25,8 @@ import {
   CheckSquare,
   Square,
   MoreHorizontal,
+  Pen,
+  SaveIcon,
 } from "lucide-react"
 import Link from "next/link"
 import { useAuth } from "@/contexts/AuthContext"
@@ -149,31 +151,39 @@ export default function AdminPage() {
 
     try {
       setIsBulkDeleting(true)
-      const deletePromises = Array.from(selectedEntries).map(async (id) => {
-        const response = await fetch(`/api/words/${id}`, {
-          method: "DELETE",
-        })
-        return response.json()
+
+      const response = await fetch("/api/words/batch/delete", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ids: Array.from(selectedEntries),
+        }),
       })
 
-      const results = await Promise.all(deletePromises)
-      const successCount = results.filter((result) => result.success).length
+      const result = await response.json()
 
-      if (successCount > 0) {
-        setDictionary(dictionary.filter((entry) => !selectedEntries.has(entry.id)))
+      if (response.ok && result.success) {
+        setDictionary((prev) =>
+          prev.filter((entry) => !selectedEntries.has(entry.id))
+        )
         setSelectedEntries(new Set())
-        success("Bulk Delete Complete", `Successfully deleted ${successCount} entries`)
-      }
-
-      if (successCount < selectedEntries.size) {
-        error("Partial Failure", `${selectedEntries.size - successCount} entries failed to delete`)
+        success(
+          "Bulk Delete Complete",
+          `Successfully deleted ${result.data.deletedCount} entries`
+        )
+      } else {
+        error("Bulk Delete Failed", result.message || "Unknown error occurred")
       }
     } catch (err) {
+      console.error("Bulk delete error:", err)
       error("Network Error", "Failed to delete entries")
     } finally {
       setIsBulkDeleting(false)
     }
   }
+
 
   const handleSearch = async (term: string) => {
     setSearchTerm(term)
@@ -516,7 +526,6 @@ export default function AdminPage() {
                 </div>
               ) : (
                 <>
-                  {/* Add New Entry Form */}
                   <div className="border rounded-lg p-6 mb-8">
                     <div className="mb-6">
                       <h2 className="text-lg font-semibold flex items-center gap-2">
@@ -683,7 +692,10 @@ export default function AdminPage() {
                         </label>
                         <textarea
                           id="batch-words"
-                          placeholder="apple&#10;book&#10;car&#10;dog&#10;..."
+                          placeholder="apple&#10;
+                          book&#10;
+                          car&#10;
+                          dog&#10;..."
                           value={batchWords}
                           onChange={(e) => setBatchWords(e.target.value)}
                           rows={6}
@@ -770,231 +782,208 @@ export default function AdminPage() {
                       </div>
                     )}
                   </div>
-
-                  {/* Dictionary Entries Table */}
                   <div className="border rounded-lg p-6">
-                    <div className="mb-6">
-                      <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-lg font-semibold">Dictionary Entries ({filteredDictionary.length})</h2>
-                        <button
-                          onClick={() => setShowBatchActions(!showBatchActions)}
-                          className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background border border-input hover:bg-accent hover:text-accent-foreground h-9 px-3 py-2 gap-2"
-                        >
-                          <MoreHorizontal className="h-4 w-4" />
-                          Batch Actions
-                        </button>
+                    <div className="flex items-center justify-between mb-4">
+                      <h2 className="text-lg font-semibold">
+                        Dictionary Entries ({filteredDictionary.length})
+                      </h2>
+                      <button
+                        onClick={() => setShowBatchActions(!showBatchActions)}
+                        className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition hover:bg-accent hover:text-accent-foreground"
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                        Batch Actions
+                      </button>
+                    </div>
+                    <div className="relative mb-4">
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2">
+                        {isSearching ? (
+                          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                        ) : (
+                          <Search className="h-4 w-4 text-muted-foreground" />
+                        )}
                       </div>
-
-                      <div className="relative mb-4">
-                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                          {isSearching ? (
-                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                          ) : (
-                            <Search className="h-4 w-4 text-muted-foreground" />
-                          )}
-                        </div>
-                        <input
-                          type="text"
-                          placeholder="Search dictionary entries..."
-                          value={searchTerm}
-                          onChange={(e) => handleSearch(e.target.value)}
-                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 pl-10 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        />
-                      </div>
-
-                      {showBatchActions && (
-                        <div className="border border-primary/20 bg-primary/5 rounded-lg p-4 mb-4">
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={handleSelectAll}
-                                className="inline-flex items-center gap-2 text-sm font-medium"
-                              >
-                                {selectedEntries.size === filteredDictionary.length ? (
-                                  <CheckSquare className="h-4 w-4" />
-                                ) : (
-                                  <Square className="h-4 w-4" />
-                                )}
-                                {selectedEntries.size === filteredDictionary.length ? "Deselect All" : "Select All"}
-                              </button>
-                              {selectedEntries.size > 0 && (
-                                <span className="text-sm text-muted-foreground">({selectedEntries.size} selected)</span>
-                              )}
-                            </div>
-                            <div className="flex gap-2">
-                              {selectedEntries.size > 0 && (
-                                <button
-                                  onClick={handleBulkDelete}
-                                  disabled={isBulkDeleting}
-                                  className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background bg-destructive text-destructive-foreground hover:bg-destructive/90 h-8 px-3 py-2 gap-2"
-                                >
-                                  {isBulkDeleting ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <Trash2 className="h-4 w-4" />
-                                  )}
-                                  {isBulkDeleting ? "Deleting..." : `Delete ${selectedEntries.size}`}
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      )}
+                      <input
+                        type="text"
+                        placeholder="Search dictionary entries..."
+                        value={searchTerm}
+                        onChange={(e) => handleSearch(e.target.value)}
+                        className="w-full rounded-md border px-3 py-2 pl-10 text-sm focus-visible:ring-2 focus-visible:ring-ring"
+                      />
                     </div>
 
-                    <div className="space-y-4">
-                      {filteredDictionary.map((entry, index) => (
-                        <div
-                          key={index}
-                          className="border border-border rounded-lg p-4 hover:bg-muted/50 transition-colors"
+                    {/* Batch Actions */}
+                    {showBatchActions && (
+                      <div className="mb-4 rounded-lg border border-primary/20 bg-primary/5 p-3 flex items-center justify-between">
+                        <button
+                          onClick={handleSelectAll}
+                          className="inline-flex items-center gap-2 text-sm font-medium"
                         >
-                          <div className="flex items-start gap-4">
-                            {showBatchActions && (
-                              <button
-                                onClick={() => handleSelectEntry(entry.id)}
-                                className="mt-1 p-1 hover:bg-accent rounded"
-                              >
-                                {selectedEntries.has(entry.id) ? (
-                                  <CheckSquare className="h-4 w-4 text-primary" />
-                                ) : (
-                                  <Square className="h-4 w-4 text-muted-foreground" />
-                                )}
-                              </button>
-                            )}
+                          {selectedEntries.size === filteredDictionary.length ? (
+                            <CheckSquare className="h-4 w-4" />
+                          ) : (
+                            <Square className="h-4 w-4" />
+                          )}
+                          {selectedEntries.size === filteredDictionary.length
+                            ? "Deselect All"
+                            : "Select All"}
+                        </button>
 
-                            <div className="flex-1">
-                              {editingId === entry.id ? (
-                                // Edit Mode
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                                  <div>
-                                    <label className="text-sm font-medium mb-1 block">Chinese Characters</label>
-                                    <input
-                                      value={editEntry.chinese}
-                                      onChange={(e) => setEditEntry({ ...editEntry, chinese: e.target.value })}
-                                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="text-sm font-medium mb-1 block">English Translation</label>
-                                    <input
-                                      value={editEntry.english}
-                                      onChange={(e) => setEditEntry({ ...editEntry, english: e.target.value })}
-                                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="text-sm font-medium mb-1 block">Pinyin</label>
-                                    <input
-                                      value={editEntry.pinyin}
-                                      onChange={(e) => setEditEntry({ ...editEntry, pinyin: e.target.value })}
-                                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="text-sm font-medium mb-1 block">Phonetic</label>
-                                    <input
-                                      value={editEntry.phonetic}
-                                      onChange={(e) => setEditEntry({ ...editEntry, phonetic: e.target.value })}
-                                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                    />
-                                  </div>
-                                </div>
-                              ) : (
-                                // View Mode
-                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                                  <div>
-                                    <div className="text-sm text-muted-foreground mb-1">Chinese</div>
-                                    <div className="text-lg font-semibold">{entry.chinese}</div>
-                                  </div>
-                                  <div>
-                                    <div className="text-sm text-muted-foreground mb-1">English</div>
-                                    <div className="text-lg">{entry.english}</div>
-                                  </div>
-                                  <div>
-                                    <div className="text-sm text-muted-foreground mb-1">Pinyin</div>
-                                    <div className="text-lg text-primary">{entry.pinyin}</div>
-                                  </div>
-                                  <div>
-                                    <div className="text-sm text-muted-foreground mb-1">Phonetic</div>
-                                    <div className="text-lg text-primary">{entry.phonetic}</div>
-                                  </div>
-                                </div>
+                        {selectedEntries.size > 0 && (
+                          <button
+                            onClick={handleBulkDelete}
+                            disabled={isBulkDeleting}
+                            className="inline-flex items-center gap-2 rounded-md bg-destructive px-3 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50"
+                          >
+                            {isBulkDeleting ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
+                            {isBulkDeleting ? "Deleting..." : `Delete ${selectedEntries.size}`}
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Table */}
+                    <div className="overflow-x-auto rounded-lg border">
+                      <table className="w-full text-sm">
+                        <thead className="bg-muted/40">
+                          <tr>
+                            {showBatchActions && <th className="w-12 px-3 py-2 text-left">Select</th>}
+                            <th className="px-3 py-2 text-left">Chinese</th>
+                            <th className="px-3 py-2 text-left">English</th>
+                            <th className="px-3 py-2 text-left">Pinyin</th>
+                            <th className="px-3 py-2 text-left">Phonetic</th>
+                            <th className="px-3 py-2 text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredDictionary.map((entry) => (
+                            <tr
+                              key={entry.id}
+                              className="border-t hover:bg-muted/30 transition-colors"
+                            >
+                              {showBatchActions && (
+                                <td className="px-3 py-2">
+                                  <button onClick={() => handleSelectEntry(entry.id)}>
+                                    {selectedEntries.has(entry.id) ? (
+                                      <CheckSquare className="h-4 w-4 text-primary" />
+                                    ) : (
+                                      <Square className="h-4 w-4 text-muted-foreground" />
+                                    )}
+                                  </button>
+                                </td>
                               )}
 
-                              {/* Action Buttons */}
-                              <div className="flex gap-2">
-                                {editingId === entry.id ? (
-                                  <>
+                              {/* Editable Row */}
+                              {editingId === entry.id ? (
+                                <>
+                                  <td className="px-3 py-2">
+                                    <input
+                                      value={editEntry.chinese}
+                                      onChange={(e) =>
+                                        setEditEntry({ ...editEntry, chinese: e.target.value })
+                                      }
+                                      className="w-full rounded border px-2 py-1 text-sm"
+                                    />
+                                  </td>
+                                  <td className="px-3 py-2">
+                                    <input
+                                      value={editEntry.english}
+                                      onChange={(e) =>
+                                        setEditEntry({ ...editEntry, english: e.target.value })
+                                      }
+                                      className="w-full rounded border px-2 py-1 text-sm"
+                                    />
+                                  </td>
+                                  <td className="px-3 py-2">
+                                    <input
+                                      value={editEntry.pinyin}
+                                      onChange={(e) =>
+                                        setEditEntry({ ...editEntry, pinyin: e.target.value })
+                                      }
+                                      className="w-full rounded border px-2 py-1 text-sm"
+                                    />
+                                  </td>
+                                  <td className="px-3 py-2">
+                                    <input
+                                      value={editEntry.phonetic}
+                                      onChange={(e) =>
+                                        setEditEntry({ ...editEntry, phonetic: e.target.value })
+                                      }
+                                      className="w-full rounded border px-2 py-1 text-sm"
+                                    />
+                                  </td>
+                                  <td className="px-3 py-2 text-right space-x-2">
                                     <button
                                       onClick={handleEditSave}
                                       disabled={isSavingEdit}
-                                      className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-3 py-2 gap-2"
+                                      className="rounded bg-primary px-3 py-1 text-sm text-white hover:bg-primary/90"
                                     >
-                                      {isSavingEdit ? (
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                      ) : (
-                                        <Save className="h-4 w-4" />
-                                      )}
-                                      {isSavingEdit ? "Saving..." : "Save"}
+                                      {isSavingEdit ? <Loader2 className="h-4 w-4 animate-spin" /> : <SaveIcon className="h-4 w-4" />}
                                     </button>
                                     <button
                                       onClick={handleEditCancel}
-                                      disabled={isSavingEdit}
-                                      className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background border border-input hover:bg-accent hover:text-accent-foreground h-9 px-3 py-2 gap-2"
+                                      className="rounded border px-3 py-1 text-sm hover:bg-accent"
                                     >
                                       <X className="h-4 w-4" />
-                                      Cancel
                                     </button>
-                                  </>
-                                ) : (
-                                  <>
+                                  </td>
+                                </>
+                              ) : (
+                                <>
+                                  <td className="px-3 py-2 font-medium">{entry.chinese}</td>
+                                  <td className="px-3 py-2">{entry.english}</td>
+                                  <td className="px-3 py-2 text-primary">{entry.pinyin}</td>
+                                  <td className="px-3 py-2 text-primary">{entry.phonetic}</td>
+                                  <td className="px-3 py-2 text-right space-x-2">
                                     <button
                                       onClick={() => handleEditStart(entry)}
-                                      className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background border border-input hover:bg-accent hover:text-accent-foreground h-9 px-3 py-2 gap-2"
+                                      className="rounded border px-3 py-1 text-sm hover:bg-accent"
                                     >
-                                      <Edit className="h-4 w-4" />
-                                      Edit
+                                      <Pen className="h-4 w-4" />
                                     </button>
                                     <button
                                       onClick={() => handleDelete(entry.id)}
                                       disabled={deletingIds.has(entry.id)}
-                                      className="inline-flex text-white items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background bg-destructive hover:bg-destructive/90 h-9 px-3 py-2 gap-2"
+                                      className="rounded px-3 py-1 text-sm text-white bg-red-400 hover:bg-destructive/90"
                                     >
-                                      {deletingIds.has(entry.id) ? (
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                      ) : (
-                                        <Trash2 className="h-4 w-4" />
-                                      )}
-                                      {deletingIds.has(entry.id) ? "Deleting..." : "Delete"}
+
+                                      {deletingIds.has(entry.id) ? <Loader2 className="h-4 w-4 animate-spin" />
+                                        : <Trash2 className="h-4 w-4" />}
                                     </button>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                                  </td>
+                                </>
+                              )}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
 
+                    {/* Empty States */}
                     {filteredDictionary.length === 0 && !searchTerm && (
-                      <div className="text-center py-12 text-muted-foreground">
-                        <Plus className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <div className="py-12 text-center text-muted-foreground">
+                        <Plus className="mx-auto mb-2 h-10 w-10 opacity-50" />
                         <p>No dictionary entries yet. Add your first entry above.</p>
                       </div>
                     )}
 
                     {filteredDictionary.length === 0 && searchTerm && (
-                      <div className="text-center py-12 text-muted-foreground">
-                        <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <div className="py-12 text-center text-muted-foreground">
+                        <Search className="mx-auto mb-2 h-10 w-10 opacity-50" />
                         <p>No entries found for "{searchTerm}"</p>
                         <p className="text-sm">Try different search terms or check spelling.</p>
                       </div>
                     )}
                   </div>
+
                 </>
               )}
             </>
-          ) :  (<>
+          ) : (<>
             <AdminsController />
           </>)
           }

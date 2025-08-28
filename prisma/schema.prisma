@@ -26,10 +26,11 @@ model Admin {
 }
 
 model Dictionary {
-  id        Int           @id @default(autoincrement())
+  id        String        @id @default(uuid())
   chinese   String
-  english   String
+  english   String        @db.VarChar(255)
   pinyin    String
   phonetic  String
   status    ReviewStatus  @default(NOT_REVIEWED)
+  @@unique([english]) // english must be unique
 }
