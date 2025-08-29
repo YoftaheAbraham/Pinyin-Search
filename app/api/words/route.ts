@@ -3,6 +3,7 @@ import { Prisma } from "@/lib/prisma.client"
 
 export async function GET(request: NextRequest) {
   try {
+    
     const { searchParams } = new URL(request.url);
     const query = searchParams.get("q")?.trim().toLowerCase() || "";
     if (!query) {
@@ -20,6 +21,7 @@ export async function GET(request: NextRequest) {
       },
     });
     return NextResponse.json({ success: true, count: entries.length, data: entries });
+  
   } catch (error) {
     console.error("[API] Error searching dictionary:", error);
     return NextResponse.json({ success: false, message: "Failed to search dictionary" }, { status: 500 });

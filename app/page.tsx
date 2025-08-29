@@ -23,30 +23,7 @@ export default function Home() {
   const [results, setResults] = useState<DictionaryEntry[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [expandedExamples, setExpandedExamples] = useState<number[]>([])
-  const [allWords, setAllWords] = useState<DictionaryEntry[]>([])
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
-
-  // Fetch all words on initial load
-  useEffect(() => {
-    const fetchWords = async () => {
-      try {
-        setIsLoading(true)
-        const response = await fetch('/api/words')
-        if (response.ok) {
-          const data = await response.json()
-          if (data.success) {
-            setAllWords(data.data)
-          }
-        }
-      } catch (error) {
-        console.error("Failed to fetch words:", error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    
-    fetchWords()
-  }, [])
 
   useEffect(() => {
     if (timeoutRef.current) {
@@ -73,9 +50,7 @@ export default function Home() {
 
   const performSearch = async (value: string) => {
     try {
-      // Query the API endpoint with the search term
       const response = await fetch(`/api/words?q=${encodeURIComponent(value)}`)
-      
       if (response.ok) {
         const data = await response.json()
         if (data.success) {
@@ -95,7 +70,9 @@ export default function Home() {
   }
 
   const toggleExamples = (index: number) => {
-    setExpandedExamples((prev) => (prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index]))
+    setExpandedExamples((prev) =>
+      prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index]
+    )
   }
 
   return (
@@ -104,7 +81,7 @@ export default function Home() {
         {/* Hero Section */}
         <div className="text-center mb-12">
           <div className="flex items-center justify-center gap-2 mb-4">
-            <h2 className="text-4xl font-bold"> Pinyin Dictionary</h2>
+            <h2 className="text-4xl font-bold">Pinyin Dictionary</h2>
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-muted-foreground">
@@ -138,10 +115,10 @@ export default function Home() {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="flex w-full rounded-md border-2 border-input bg-transparent px-3 py-2 text-lg shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 pl-10 h-14 focus:border-primary"
             />
-            
           </div>
         </div>
 
+        {/* Loading */}
         {isLoading && (
           <div className="text-center py-12">
             <div className="flex items-center justify-center gap-3 mb-4">
@@ -151,22 +128,11 @@ export default function Home() {
                 <span className="text-lg font-medium">Processing your search...</span>
               </div>
             </div>
-            <div className="flex justify-center">
-              <div className="flex gap-1">
-                <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></div>
-                <div
-                  className="w-2 h-2 bg-primary rounded-full animate-bounce"
-                  style={{ animationDelay: "150ms" }}
-                ></div>
-                <div
-                  className="w-2 h-2 bg-primary rounded-full animate-bounce"
-                  style={{ animationDelay: "300ms" }}
-                ></div>
-              </div>
-            </div>
           </div>
         )}
-        {!isLoading && results.length > 0 && (
+
+        {/* Search Results */}
+        {!isLoading && searchTerm && results.length > 0 && (
           <div className="space-y-4">
             <h3 className="text-xl font-semibold mb-4">Search Results ({results.length})</h3>
             <div className="space-y-4">
@@ -232,6 +198,8 @@ export default function Home() {
             </div>
           </div>
         )}
+
+        {/* No Results */}
         {!isLoading && searchTerm && results.length === 0 && (
           <div className="text-center py-12">
             <div className="text-muted-foreground mb-4">
@@ -241,7 +209,9 @@ export default function Home() {
             </div>
           </div>
         )}
-        {!searchTerm && !isLoading && allWords.length > 0 && (
+
+        {/* Intro (when no search) */}
+        {!searchTerm && !isLoading && (
           <div className="text-center py-12">
             <div className="bg-gradient-to-r from-primary/5 to-primary/10 rounded-lg p-8 mb-8">
               <div className="flex items-center justify-center gap-2 mb-4">
@@ -249,8 +219,8 @@ export default function Home() {
                 <h3 className="text-xl font-semibold">Powered by Advanced AI</h3>
               </div>
               <p className="text-muted-foreground max-w-md mx-auto">
-                Our intelligent system provides accurate pinyin translations with community verification for the highest
-                quality results.
+                Our intelligent system provides accurate pinyin translations with community verification for the
+                highest quality results.
               </p>
             </div>
 
